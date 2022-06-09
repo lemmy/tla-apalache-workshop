@@ -12,7 +12,7 @@
  * 
  * Igor Konnov, Informal Systems, 2021-2022
  *)
-EXTENDS Integers, Apalache, ERC20_typedefs
+EXTENDS Integers, ERC20_typedefs
 
 CONSTANTS
     \* Set of all addresses.
@@ -53,6 +53,9 @@ VARIABLES
     \* A serial number to assign unique ids to transactions
     \* @type: Int;
     nextTxId
+
+vars ==
+    <<balanceOf, allowance, pendingTransactions, lastTx, nextTxId>>
 
 \* Initialize an ERC20 token.
 Init ==
@@ -203,10 +206,11 @@ Next ==
          \E value \in AMOUNTS:
            SubmitApprove(sender, spender, value)
     \/ \E tx \in pendingTransactions:
-        \/ CommitTransfer(tx)
-        \/ CommitTransferFrom(tx)
-        \/ CommitApprove(tx)
-
+        CommitTransfer(tx)
+    \/ \E tx \in pendingTransactions:
+        CommitTransferFrom(tx)
+    \/ \E tx \in pendingTransactions:
+        CommitApprove(tx)
 
 (* False invariants to debug the spec *)
 
@@ -251,13 +255,13 @@ NoTransferFromWhileApproveInFlight ==
             /\ approval.value < lastTx.value
             /\ approval.value > 0
     IN
-    ~BadExample
+    ~BadExample \*\/ BadExample
 
 \* Make sure that the account balances never go negative.
 NoNegativeBalances ==
     \A a \in ADDR:
         balanceOf[a] >= 0
-
+====
 \* A trace invariant: For every pair <<spender, fromAddr>>, the sum of transfers
 \* via TransferFrom is no greater than the maximum allowance.
 \* It is quite hard to formulate this property, as there are scenarios,
